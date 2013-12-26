@@ -18,8 +18,13 @@
     }
 </style>
 
-<div id="griddata"></div>
-<div id="grid"></div>
+@using (Html.BeginForm())
+{ 
+    <div id="grid"></div>
+    @Html.Hidden("Comments")
+    <input type="submit" id="SubmitButton" value="save" />
+}
+
 
 <script id="popup-editor" type="text/x-kendo-template">
     <textarea data-role="editor" data-bind="value:CmtText" style='width:740px;height:440px' required
@@ -55,8 +60,10 @@
     testData[2].CmtText =
         'One morning, when Gregor Samsa woke from troubled dreams, he found himself transformed in his bed into a horrible vermin. He lay on his armour-like back, and if he lifted his head a little he could see his brown belly, slightly domed and divided by arches into stiff sections. The bedding was hardly ab';
 
-    localStorage["grid_data"] = JSON.stringify(testData);
+    // localStorage["grid_data"] = JSON.stringify(testData);
     // }
+
+    $('#Comments').val(JSON.stringify(testData));
 
 </script>
 
@@ -84,18 +91,22 @@
     $(document).ready(function () {
         var maxTextLen = 300; // max number of characters to show before truncating
         var AddedRecordId = -1;
+        $("#SubmitButton").kendoButton();
+
 
         // Get data from local data store
         // this can be from local storage or html elements or JavaScript variables.
         function RetrieveDatafromStorage() {
-            var localData = JSON.parse(localStorage["grid_data"]);
+            // var localData = JSON.parse(localStorage["grid_data"]);
+            var localData = JSON.parse($('#Comments').val());
             return localData;
         }
 
         // Get data from local data store
         // this can be to local storage or html elements or JavaScript variables.
         function SaveDataToStorage(newData) {
-            localStorage["grid_data"] = JSON.stringify(newData);
+            //localStorage["grid_data"] = JSON.stringify(newData);
+            $('#Comments').val(JSON.stringify(newData));
         }
 
         //
