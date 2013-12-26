@@ -1,0 +1,317 @@
+﻿@{
+    ViewBag.Title = "Home Page";
+}
+<style type="text/css">
+    .k-edit-form-container
+    {
+        width: inherit;
+    }
+
+    .k-grid td
+    {
+        vertical-align: top;
+    }
+
+    .k-grid th
+    {
+        text-align: center !important;
+    }
+</style>
+
+<div id="griddata"></div>
+<div id="grid"></div>
+
+<script id="popup-editor" type="text/x-kendo-template">
+    <textarea data-role="editor" data-bind="value:CmtText" style='width:740px;height:440px' required
+    name="Comment"/>
+</script>
+
+
+<script type="text/javascript">
+    // initialize data
+
+    //if (localStorage["grid_data"] == undefined) {
+    var testData = [{
+        ID: 1,
+        CmtText: "TEST1",
+        DateEntered: '03/01/2013',
+        Status: 3
+    }, {
+        ID: 2,
+        CmtText: "TEST2",
+        DateEntered: '03/01/2012'
+    }, {
+        ID: 3,
+        CmtText: "TEST3",
+        DateEntered: '03/31/2013'
+    }];
+
+    testData[0].CmtText =
+    'A wonderful serenity has taken possession of my entire soul, like these sweet mornings of spring which I enjoy with my whole heart. I am alone, and feel the charm of existence in this spot, which was created for the bliss of souls like mine. I am so happy, my dear friend, so absorbed in the exquis';
+
+    testData[1].CmtText =
+    '<p>Far far away, behind the<em> word mountains, far from the countries Vokalia and Consonantia, there live the blind texts. Separated they live in Bookmarksgrove right at the coast of the Semantics, a large language ocean. A small river named Duden flows by th</em>eir place and supplies it with the necessary regelialia. </p><p>It is a paradisematic country, in which roasted parts of s<strong>entences fly into your mouth. Even the all-powerful Pointing has no control about the blind texts it is an almost unorthographic life One day however a small line of blind text by the name of Lorem Ipsum decided to leave for the far World of Grammar. The Big Oxmox advised her not to do so, because there were thousands of bad Commas, wild Question Marks and devious Semikoli, but the Little Blind Text didn&rsquo;t listen. She packed her seven versalia, put her initial into th</strong>e belt and made </p><p>herself on the way. When she reached the first hills of the Italic Mountains, she had a last view back on the skyline of her hometown Bookmarksgrove, the headline of Alphabet Village and the subline of her own road, the Line Lane. Pityful a rethoric question ran over her cheek, then</p>'
+
+    testData[2].CmtText =
+        'One morning, when Gregor Samsa woke from troubled dreams, he found himself transformed in his bed into a horrible vermin. He lay on his armour-like back, and if he lifted his head a little he could see his brown belly, slightly domed and divided by arches into stiff sections. The bedding was hardly ab';
+
+    localStorage["grid_data"] = JSON.stringify(testData);
+    // }
+
+</script>
+
+
+<script type="text/javascript">
+    // extends array prototype to add a remove method.
+    Array.prototype.remove = function (from, to) {
+        var rest = this.slice((to || from) + 1 || this.length);
+        this.length = from < 0 ? this.length + from : from;
+        return this.push.apply(this, rest);
+    };
+
+    var statusFlags = {
+        unchanged: 0,
+        added: 1,
+        deleted: 2,
+        updated: 3
+    };
+
+    // global variables referenced in Grid Logic. 
+    // must be global due to scoping issues.
+    var showFullComment; // create global var.
+    var statusStr = ['', 'Added', 'Deleted', 'Updated'];
+
+    $(document).ready(function () {
+        var maxTextLen = 300; // max number of characters to show before truncating
+        var AddedRecordId = -1;
+
+        // Get data from local data store
+        // this can be from local storage or html elements or JavaScript variables.
+        function RetrieveDatafromStorage() {
+            var localData = JSON.parse(localStorage["grid_data"]);
+            return localData;
+        }
+
+        // Get data from local data store
+        // this can be to local storage or html elements or JavaScript variables.
+        function SaveDataToStorage(newData) {
+            localStorage["grid_data"] = JSON.stringify(newData);
+        }
+
+        //
+        // Function called by click event handler to show the full comment in a  
+        // popup window.  Uses ExtAlertDialog function from Kendo Labs plugin
+        // https://github.com/kendo-labs/kendo-plugins
+        //
+        showFullComment = function (longComment) {
+            kendo.ui.ExtAlertDialog.show({
+                title: "Full Comment Text",
+                message: longComment,
+                width: '740px',
+                height: '400px'
+            })
+        }
+
+        showFullComment = function (longComment) {
+            kendo.ui.ExtAlertDialog.show({
+                title: "Full Comment Text",
+                message: longComment,
+                width: '740px',
+                height: '400px'
+            })
+        }
+
+        // called after the table <tr><td></td></tr> for the row(s) have been generated,
+        // but not outputted to screen.  
+        function onDataBound(arg) {
+            var dataCell, dataRow;
+            var gridData = arg.sender._data;
+            for (var i = 0; i < gridData.length; i++) {
+                var dataTemp = gridData[i].CmtText;
+                dataRow = arg.sender.tbody[0].children[i];
+
+                // if text is too long, then truncate text and build popup window code.
+                // that works off of click handler on a span element.
+                if (dataTemp.length > maxTextLen) {
+
+
+                    dataCell = dataRow.cells[0];
+                    dataCell.innerHTML = "<span onclick='showFullComment(\"" + dataTemp +
+                            "\")' title=\"Click to show full comment\">" +
+                            dataTemp.substr(0, maxTextLen - 100) + "...</span>";
+                }
+                dataCell = dataRow.cells[3];
+                if (gridData[i].Status && gridData[i].Status == statusFlags.deleted) {
+                    // if row has been deleted, then remove the buttons.
+                    dataCell.innerHTML = "";
+                } else {
+                    // add the delete icon to the button.
+                    dataCell.children[1].children[0].className = 'k-icon k-delete'
+                }
+            }
+        }
+
+        function DeleteRow(dataRow) {
+            var localData = RetrieveDatafromStorage();
+            for (var i = 0; i < localData.length; i++) {
+
+                if (localData[i].ID == dataRow.ID) {
+
+                    // if existing record, then set status to deleted
+                    // if record added this session, then remove record
+                    // and do not send back to server for processing
+                    if (localData[i].Status && localData[i].Status != statusFlags.added) {
+                        localData.remove(i);
+                    } else {
+                        localData[i].Status = statusFlags.deleted;
+                    }
+                    break;
+                }
+            }
+
+            SaveDataToStorage(localData);
+
+            return localData;
+        }
+
+
+        var dataSource = new kendo.data.DataSource({
+            transport: {
+                // called when adding a record
+                create: function (options) {
+
+                    // new next record id from closure scoped variable
+                    options.data.ID = AddedRecordId--;
+                    options.data.Status = statusFlags.added;
+                    options.success(options.data);
+
+                    var localData = RetrieveDatafromStorage();
+                    localData.push(options.data);
+                    SaveDataToStorage(localData);
+
+                },
+                // called when deleting a record.
+                //destroy: function (options) 
+                // all code that would be here is in function DeleteRow().
+                // so that we can correctly delete a row when called via custom delete cmd.
+                //},
+
+                // called to initially load data into the grid
+                read: function (options) {
+                    var localData = RetrieveDatafromStorage();
+                    options.success(localData);
+                },
+
+                // only called if data in popup has actually changed.
+                update: function (options) {
+                    var localData = RetrieveDatafromStorage();
+                    for (var i = 0; i < localData.length; i++) {
+                        if (localData[i].ID == options.data.ID) {
+                            localData[i].CmtText = options.data.CmtText;
+
+                            // change status to updated if record is not a new one
+                            if (!options.data.Status || options.data.Status !== statusFlags.added) {
+                                localData[i].Status = statusFlags.updated;
+                                options.data.Status = statusFlags.updated;
+                            }
+                            break;
+                        }
+                    }
+                    SaveDataToStorage(localData);
+                    options.success(options.data);
+
+                },
+
+            },
+            schema: {
+                model: {
+                    id: "ID",
+                    fields: {
+                        ID: {
+                            type: "number"
+                        },
+                        CmtText: {
+                            type: "string"
+                        },
+                        DateEntered: {
+                            type: "date"
+                        },
+                        Status: {
+                            type: "number"
+                        }
+                    }
+                }
+            },
+            batch: false,
+            // comment out line to show records marked as deleted.
+            //filter: { field: "Status", operator: "ne", value: 2 }
+        });
+
+        var grid = $("#grid").kendoGrid({
+            dataSource: dataSource,
+            height: 500,
+            toolbar: ["create"],
+            columns: [{
+                field: "CmtText",
+                title: 'User Entered Comment',
+                encoded: false,
+                width: '550px'
+            }, {
+                field: "DateEntered",
+                title: 'Created On',
+                width: '120px',
+                format: "{0: yyyy-MM-dd}",
+                attributes: {
+                    style: "text-align: center;"
+                }
+            }, {
+                field: "Status",
+                title: 'Status',
+                width: '90px',
+                template: function (dataItem) {
+                    var index = dataItem.Status ? dataItem.Status : statusFlags.unchanged;
+                    return statusStr[index];
+                },
+                attributes: {
+                    style: "text-align: center;"
+                }
+            },
+            { command: ["edit", { text: 'Delete', click: deleteItem }] }],
+            sortable: {
+                mode: "single",
+                allowUnsort: false
+            },
+            editable: {
+                confirmation: "Are you sure that you want to delete this record?",
+                mode: "popup",
+                template: kendo.template($("#popup-editor").html()),
+                window: {
+                    title: "Edit Comment",
+                    animation: false,
+                    width: 740
+                }
+            },
+            dataBound: onDataBound,
+        }).data("kendoGrid");
+
+        // called from custom delete command
+        // Uses ExtOkCancelDialog function from Kendo Labs plugin
+        // https://github.com/kendo-labs/kendo-plugins
+        function deleteItem(e) {
+            var dataItem = this.dataItem($(e.currentTarget).closest("tr"));
+            $.when(kendo.ui.ExtOkCancelDialog.show({
+                title: "Confirm Comment Deletion",
+                message: dataItem.CmtText,
+                width: '740px',
+                height: '300px'
+            })).done(function (response) {
+                dataItem.Status = statusFlags.deleted;
+                grid.dataSource.sync();
+                grid.refresh();
+                DeleteRow(dataItem);
+            });
+        }
+    });
+
+
+</script>
